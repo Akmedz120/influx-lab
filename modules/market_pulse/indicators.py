@@ -153,3 +153,44 @@ def get_dxy() -> dict:
         "unit": "index",
         "invert": False,
     }
+
+
+HEATMAP_TICKERS = ["SPY", "^FTSE", "^GDAXI", "^N225", "^HSI", "EEM"]
+HEATMAP_LABELS = {
+    "SPY":    "S&P 500 (US)",
+    "^FTSE":  "FTSE 100 (UK)",
+    "^GDAXI": "DAX (Germany)",
+    "^N225":  "Nikkei 225 (Japan)",
+    "^HSI":   "Hang Seng (HK)",
+    "EEM":    "Emerging Markets",
+}
+
+
+def get_global_heatmap() -> pd.DataFrame:
+    """
+    Fetch 40-day price history for global indices (yfinance).
+    Returns DataFrame: ticker, label, 1d return, 1w return, 1m return.
+    Uses a 40-day window — enough for 1-month + buffer on short weeks/holidays.
+    """
+    end = _today()
+    start = (datetime.today() - timedelta(days=40)).strftime("%Y-%m-%d")
+    prices = fetch_prices(HEATMAP_TICKERS, start, end)
+
+    rows = []
+    for ticker in HEATMAP_TICKERS:
+        if ticker not in prices.columns:
+            continue
+        s = prices[ticker].dropna()
+        if len(s) < 2:
+            continue
+        r1d = float(s.iloc[-1] / s.iloc[-2] - 1) if len(s) >= 2 else None
+        r1w = float(s.iloc[-1] / s.iloc[-6] - 1) if len(s) >= 6 else None
+        r1m = float(s.iloc[-1] / s.iloc[0] - 1) if len(s) >= 20 else None
+        rows.append({
+            "ticker": ticker,
+            "label": HEATMAP_LABELS.get(ticker, ticker),
+            "1d": r1d,
+            "1w": r1w,
+            "1m": r1m,
+        })
+    return pd.DataFrame(rows)

@@ -146,3 +146,35 @@ def test_get_dxy_returns_dict_keys():
     with patch("modules.market_pulse.indicators.fetch_prices", return_value=mock_df):
         result = get_dxy()
     assert all(k in result for k in ["series", "current", "label", "unit", "invert"])
+
+
+# ─── Global Heatmap ───────────────────────────────────────────────────────────
+
+def test_get_global_heatmap_returns_dataframe():
+    from modules.market_pulse.indicators import get_global_heatmap, HEATMAP_TICKERS
+    idx = pd.date_range("2025-01-01", periods=30, freq="B")
+    mock_df = pd.DataFrame({t: np.linspace(100, 110, 30) for t in HEATMAP_TICKERS}, index=idx)
+    with patch("modules.market_pulse.indicators.fetch_prices", return_value=mock_df):
+        result = get_global_heatmap()
+    assert isinstance(result, pd.DataFrame)
+
+
+def test_get_global_heatmap_has_required_columns():
+    from modules.market_pulse.indicators import get_global_heatmap, HEATMAP_TICKERS
+    idx = pd.date_range("2025-01-01", periods=30, freq="B")
+    mock_df = pd.DataFrame({t: np.linspace(100, 110, 30) for t in HEATMAP_TICKERS}, index=idx)
+    with patch("modules.market_pulse.indicators.fetch_prices", return_value=mock_df):
+        result = get_global_heatmap()
+    assert all(c in result.columns for c in ["ticker", "label", "1d", "1w", "1m"])
+
+
+def test_get_global_heatmap_1d_return_correct():
+    from modules.market_pulse.indicators import get_global_heatmap
+    prices = np.linspace(100.0, 110.0, 30)
+    idx = pd.date_range("2025-01-01", periods=30, freq="B")
+    mock_df = pd.DataFrame({"SPY": prices}, index=idx)
+    with patch("modules.market_pulse.indicators.fetch_prices", return_value=mock_df):
+        result = get_global_heatmap()
+    spy_row = result[result["ticker"] == "SPY"].iloc[0]
+    expected_1d = prices[-1] / prices[-2] - 1
+    assert abs(spy_row["1d"] - expected_1d) < 1e-6
