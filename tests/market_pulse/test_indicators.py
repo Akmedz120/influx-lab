@@ -310,3 +310,41 @@ def test_get_copper_gold_ratio_value_is_copper_over_gold():
     with patch("modules.market_pulse.indicators.fetch_prices", return_value=mock_df):
         result = get_copper_gold_ratio()
     assert abs(result["current"] - (4.0 / 2000.0)) < 1e-6
+
+
+# ─── Sector Rotation ──────────────────────────────────────────────────────────
+
+def test_get_sector_performance_returns_dataframe():
+    from modules.market_pulse.indicators import get_sector_performance, SECTOR_TICKERS
+    idx = pd.date_range("2025-01-01", periods=30, freq="B")
+    mock_df = pd.DataFrame(
+        {t: np.linspace(100, 110, 30) for t in SECTOR_TICKERS},
+        index=idx
+    )
+    with patch("modules.market_pulse.indicators.fetch_prices", return_value=mock_df):
+        result = get_sector_performance()
+    assert isinstance(result, pd.DataFrame)
+
+
+def test_get_sector_performance_has_required_columns():
+    from modules.market_pulse.indicators import get_sector_performance, SECTOR_TICKERS
+    idx = pd.date_range("2025-01-01", periods=30, freq="B")
+    mock_df = pd.DataFrame(
+        {t: np.linspace(100, 110, 30) for t in SECTOR_TICKERS},
+        index=idx
+    )
+    with patch("modules.market_pulse.indicators.fetch_prices", return_value=mock_df):
+        result = get_sector_performance()
+    assert all(c in result.columns for c in ["ticker", "label", "1d", "1w", "1m", "risk_type"])
+
+
+def test_get_sector_performance_risk_type_values():
+    from modules.market_pulse.indicators import get_sector_performance, SECTOR_TICKERS
+    idx = pd.date_range("2025-01-01", periods=30, freq="B")
+    mock_df = pd.DataFrame(
+        {t: np.linspace(100, 110, 30) for t in SECTOR_TICKERS},
+        index=idx
+    )
+    with patch("modules.market_pulse.indicators.fetch_prices", return_value=mock_df):
+        result = get_sector_performance()
+    assert set(result["risk_type"].unique()).issubset({"Risk-On", "Risk-Off"})

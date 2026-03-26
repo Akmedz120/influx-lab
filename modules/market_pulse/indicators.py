@@ -315,3 +315,55 @@ def get_copper_gold_ratio() -> dict:
         "unit": "ratio",
         "invert": True,
     }
+
+
+SECTOR_TICKERS = {
+    "XLF":  "Financials",
+    "XLK":  "Technology",
+    "XLE":  "Energy",
+    "XLV":  "Health Care",
+    "XLI":  "Industrials",
+    "XLY":  "Consumer Disc.",
+    "XLP":  "Consumer Staples",
+    "XLU":  "Utilities",
+    "XLRE": "Real Estate",
+    "XLB":  "Materials",
+}
+
+_RISK_ON_SECTORS = {"XLK", "XLY", "XLF", "XLI", "XLE"}
+
+
+def get_sector_performance() -> pd.DataFrame:
+    """
+    Fetch SPDR sector ETF 1d/1w/1m performance.
+    Labels each sector as Risk-On or Risk-Off.
+
+    Risk-On:  XLK, XLY, XLF, XLI, XLE  (grow with economy)
+    Risk-Off: XLP, XLU, XLRE, XLV, XLB (defensive)
+
+    Returns DataFrame: ticker, label, 1d, 1w, 1m, risk_type.
+    """
+    end = _today()
+    start = (datetime.today() - timedelta(days=40)).strftime("%Y-%m-%d")
+    tickers = list(SECTOR_TICKERS.keys())
+    prices = fetch_prices(tickers, start, end)
+
+    rows = []
+    for ticker, label in SECTOR_TICKERS.items():
+        if ticker not in prices.columns:
+            continue
+        s = prices[ticker].dropna()
+        if len(s) < 2:
+            continue
+        r1d = float(s.iloc[-1] / s.iloc[-2] - 1) if len(s) >= 2 else None
+        r1w = float(s.iloc[-1] / s.iloc[-6] - 1) if len(s) >= 6 else None
+        r1m = float(s.iloc[-1] / s.iloc[0] - 1) if len(s) >= 20 else None
+        rows.append({
+            "ticker": ticker,
+            "label": label,
+            "1d": r1d,
+            "1w": r1w,
+            "1m": r1m,
+            "risk_type": "Risk-On" if ticker in _RISK_ON_SECTORS else "Risk-Off",
+        })
+    return pd.DataFrame(rows)
