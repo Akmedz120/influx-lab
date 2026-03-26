@@ -16,6 +16,8 @@ from modules.market_pulse.indicators import (
     SECTOR_TICKERS, HEATMAP_TICKERS, HEATMAP_LABELS,
 )
 from modules.data.fetcher import fetch_prices
+from modules.ui.glossary import render_definition
+from modules.ui.context import so_what, correlation_so_what, regime_so_what, leadlag_so_what
 
 st.set_page_config(page_title="Integration", layout="wide")
 st.title("Integration")
@@ -123,6 +125,16 @@ try:
                 "that's when diversification fails. Try filtering by **Extreme Fear** to see this."
             )
 
+        # So What: compute average off-diagonal correlation
+        try:
+            import numpy as np
+            mask = ~np.eye(len(corr), dtype=bool)
+            _avg_corr = float(corr.values[mask].mean()) if mask.any() else None
+        except Exception:
+            _avg_corr = None
+        so_what(correlation_so_what(_avg_corr))
+        render_definition("correlation")
+
 except Exception as e:
     st.error(f"Could not load correlations: {e}")
 
@@ -200,6 +212,9 @@ try:
     else:
         st.caption("No asset data available for regime stats.")
 
+    so_what(regime_so_what(current_regime), color=current_color)
+    render_definition("macro_regime")
+
 except Exception as e:
     st.error(f"Could not load regime data: {e}")
 
@@ -214,6 +229,8 @@ st.caption(
     "Pick a target, click **Scan** — we rank all indicators by how strongly they "
     "lead or lag the target over the past 3 years."
 )
+so_what(leadlag_so_what())
+render_definition("lead_lag")
 
 TARGET_OPTIONS = ["VIX", "DXY", "HY Spread", "Yield Curve", "Gold/SPY", "Copper/Gold", "S&P 500 (US)"]
 

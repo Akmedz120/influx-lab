@@ -13,6 +13,12 @@ from modules.market_pulse.indicators import (
     get_sector_performance,
 )
 from modules.market_pulse.scoring import percentile_score
+from modules.ui.glossary import render_definition
+from modules.ui.context import (
+    so_what, fg_so_what, sentiment_so_what,
+    risk_appetite_so_what, macro_so_what,
+    liquidity_so_what, sector_so_what,
+)
 
 st.set_page_config(page_title="Market Pulse", layout="wide")
 st.title("Market Pulse")
@@ -100,6 +106,9 @@ try:
             emoji = COLOR_EMOJI.get(d["color"], "⚪")
             st.markdown(f"{emoji} **{d['label']}** — {d['score']:.0f}th pct")
 
+    so_what(fg_so_what(fg["score"], fg["label"]), color=gauge_color)
+    render_definition("fear_greed")
+
 except Exception as e:
     st.error(f"Fear & Greed index unavailable: {e}")
 
@@ -137,16 +146,28 @@ st.divider()
 # ─── Fear & Sentiment ─────────────────────────────────────────────────────────
 st.header("Fear & Sentiment")
 
+_sent_colors = {}
 c1, c2, c3 = st.columns(3)
-for col, fn in [(c1, get_vix), (c2, get_aaii_sentiment), (c3, get_consumer_confidence)]:
+for col, fn, key in [(c1, get_vix, "vix"), (c2, get_aaii_sentiment, "aaii"), (c3, get_consumer_confidence, "conf")]:
     try:
         ind = fn()
         sc  = _score(ind)
+        _sent_colors[key] = sc["color"]
         _indicator_block(col, ind, sc)
     except Exception as e:
+        _sent_colors[key] = "yellow"
         with col:
             st.metric(label="—", value="—")
             st.caption(f"Could not load: {e}")
+
+so_what(
+    sentiment_so_what(
+        _sent_colors.get("vix", "yellow"),
+        _sent_colors.get("aaii", "yellow"),
+        _sent_colors.get("conf", "yellow"),
+    )
+)
+render_definition("vix")
 
 # VIX Term Structure
 try:
@@ -175,27 +196,43 @@ st.divider()
 # ─── Risk Appetite ────────────────────────────────────────────────────────────
 st.header("Risk Appetite")
 
+_ra_colors = {}
 c4, c5, c6, c7 = st.columns(4)
-for col, fn in [
-    (c4, get_hy_credit_spread),
-    (c5, get_gold_spy_ratio),
-    (c6, get_dxy),
-    (c7, get_copper_gold_ratio),
+for col, fn, key in [
+    (c4, get_hy_credit_spread,  "hy"),
+    (c5, get_gold_spy_ratio,    "gold"),
+    (c6, get_dxy,               "dxy"),
+    (c7, get_copper_gold_ratio, "cg"),
 ]:
     try:
         ind = fn()
         sc  = _score(ind)
+        _ra_colors[key] = sc["color"]
         _indicator_block(col, ind, sc)
     except Exception as e:
+        _ra_colors[key] = "yellow"
         with col:
             st.metric(label="—", value="—")
             st.caption(f"Could not load: {e}")
+
+so_what(
+    risk_appetite_so_what(
+        _ra_colors.get("hy", "yellow"),
+        _ra_colors.get("gold", "yellow"),
+        _ra_colors.get("dxy", "yellow"),
+        _ra_colors.get("cg", "yellow"),
+    )
+)
+render_definition("hy_spread")
+render_definition("dxy")
 
 st.divider()
 
 # ─── Macro Stress ─────────────────────────────────────────────────────────────
 st.header("Macro Stress")
 
+_yc_val = None
+_fed_color = "yellow"
 c8, c9 = st.columns(2)
 for col, fn in [(c8, get_yield_curve), (c9, get_fed_funds)]:
     try:
@@ -203,12 +240,15 @@ for col, fn in [(c8, get_yield_curve), (c9, get_fed_funds)]:
         sc  = _score(ind)
         note = None
         if "Yield Curve" in ind["label"]:
+            _yc_val = ind["current"]
             if ind["current"] < 0:
                 note = f"Curve is **inverted** ({ind['current']:.2f}%). Historically precedes recession by 12–18 months."
             elif ind["current"] < 0.5:
                 note = f"Curve is near-flat ({ind['current']:.2f}%). Watch for inversion."
             else:
                 note = f"Curve is positive ({ind['current']:.2f}%). Normal — longer rates above short-term."
+        else:
+            _fed_color = sc["color"]
         with col:
             st.metric(
                 label=f"{COLOR_EMOJI[sc['color']]} {ind['label']}",
@@ -225,21 +265,29 @@ for col, fn in [(c8, get_yield_curve), (c9, get_fed_funds)]:
             st.metric(label="—", value="—")
             st.caption(f"Could not load: {e}")
 
+so_what(macro_so_what(_yc_val, _fed_color))
+render_definition("yield_curve")
+
 st.divider()
 
 # ─── Liquidity ────────────────────────────────────────────────────────────────
 st.header("Liquidity")
 
+_liq_colors = {}
 c10, c11 = st.columns(2)
-for col, fn in [(c10, get_m2), (c11, get_fed_balance_sheet)]:
+for col, fn, key in [(c10, get_m2, "m2"), (c11, get_fed_balance_sheet, "fed")]:
     try:
         ind = fn()
         sc  = _score(ind)
+        _liq_colors[key] = sc["color"]
         _indicator_block(col, ind, sc)
     except Exception as e:
+        _liq_colors[key] = "yellow"
         with col:
             st.metric(label="—", value="—")
             st.caption(f"Could not load: {e}")
+
+so_what(liquidity_so_what(_liq_colors.get("m2", "yellow"), _liq_colors.get("fed", "yellow")))
 
 st.divider()
 
@@ -281,6 +329,11 @@ try:
                 display = display.rename(columns={"label": "Sector", "1d": "1 Day", "1w": "1 Week", "1m": "1 Month"})
                 display = display.drop(columns=["ticker", "risk_type"])
                 st.write(display.to_html(escape=False, index=False), unsafe_allow_html=True)
+
+        _ron_avg  = ron["1w"].mean()  if "1w" in ron.columns  else None
+        _roff_avg = roff["1w"].mean() if "1w" in roff.columns else None
+        so_what(sector_so_what(_ron_avg, _roff_avg))
+        render_definition("sector_rotation")
 except Exception as e:
     st.error(f"Sector data unavailable: {e}")
 

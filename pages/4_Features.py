@@ -7,6 +7,8 @@ from datetime import datetime, timedelta
 
 from modules.features.feature_table import build
 from modules.data.fetcher import fetch_prices
+from modules.ui.glossary import render_definition
+from modules.ui.context import so_what, feature_so_what
 
 st.set_page_config(page_title="Features", layout="wide")
 st.title("Features")
@@ -177,6 +179,8 @@ divs = _check_divergences(latest)
 for msg in divs:
     st.warning(f"Divergence: {msg}")
 
+so_what(feature_so_what(latest))
+
 # Radar chart
 radar_vals   = [_normalize_for_radar(latest.get(s, float("nan")), s) for s in RADAR_SIGNALS]
 radar_labels = [SIGNAL_LABELS[s] for s in RADAR_SIGNALS]
@@ -221,6 +225,25 @@ with col_badges:
             f"</div>",
             unsafe_allow_html=True,
         )
+
+# Definition expanders for each signal
+_SIG_GLOSSARY_KEYS = {
+    "vol_regime_score":    "volatility_regime",
+    "momentum_short":      "momentum",
+    "momentum_long":       "momentum",
+    "mean_reversion":      "mean_reversion",
+    "trend_strength":      "trend_strength",
+    "macro_stress":        "macro_stress",
+    "volume_regime_score": "volume_regime",
+    "fiftytwo_week_pos":   "fiftytwo_week_pos",
+    "relative_strength":   "relative_strength",
+}
+seen_glossary = set()
+for sig in RADAR_SIGNALS:
+    gkey = _SIG_GLOSSARY_KEYS.get(sig)
+    if gkey and gkey not in seen_glossary:
+        render_definition(gkey)
+        seen_glossary.add(gkey)
 
 st.divider()
 
