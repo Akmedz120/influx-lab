@@ -265,3 +265,53 @@ def get_fed_balance_sheet() -> dict:
         "unit": "$M",
         "invert": True,
     }
+
+
+FX_TICKERS = {
+    "EURUSD=X": "EUR / USD",
+    "JPY=X":    "USD / JPY",
+    "CNY=X":    "USD / CNY",
+}
+
+
+def get_fx_pairs() -> pd.DataFrame:
+    """
+    Fetch EUR/USD, USD/JPY, USD/CNY from yfinance over a 14-day window.
+    Returns DataFrame: ticker, label, current, 1d_return, 1w_return.
+    """
+    end = _today()
+    start = (datetime.today() - timedelta(days=14)).strftime("%Y-%m-%d")
+    tickers = list(FX_TICKERS.keys())
+    prices = fetch_prices(tickers, start, end)
+
+    rows = []
+    for ticker, label in FX_TICKERS.items():
+        if ticker not in prices.columns:
+            continue
+        s = prices[ticker].dropna()
+        if len(s) < 2:
+            continue
+        current = float(s.iloc[-1])
+        r1d = float(s.iloc[-1] / s.iloc[-2] - 1) if len(s) >= 2 else None
+        r1w = float(s.iloc[-1] / s.iloc[-6] - 1) if len(s) >= 6 else None
+        rows.append({"ticker": ticker, "label": label, "current": current, "1d": r1d, "1w": r1w})
+    return pd.DataFrame(rows)
+
+
+def get_copper_gold_ratio() -> dict:
+    """
+    Compute Copper (HG=F) / Gold (GC=F) ratio.
+    High ratio = economic optimism (growth > fear) = calm.
+    Low ratio = flight to safety = stressed.
+    Score with invert=True.
+    """
+    start, end = _start(), _today()
+    prices = fetch_prices(["HG=F", "GC=F"], start, end)
+    ratio = (prices["HG=F"] / prices["GC=F"]).dropna()
+    return {
+        "series": ratio,
+        "current": float(ratio.iloc[-1]),
+        "label": "Copper / Gold Ratio",
+        "unit": "ratio",
+        "invert": True,
+    }

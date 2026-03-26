@@ -260,3 +260,53 @@ def test_get_fed_balance_sheet_current_is_last():
     with patch("modules.market_pulse.indicators.fetch_fred", return_value=s):
         result = get_fed_balance_sheet()
     assert abs(result["current"] - values[-1]) < 1.0
+
+
+# ─── Advanced International ───────────────────────────────────────────────────
+
+def test_get_fx_pairs_returns_dataframe():
+    from modules.market_pulse.indicators import get_fx_pairs, FX_TICKERS
+    idx = pd.date_range("2025-01-01", periods=14, freq="B")
+    mock_df = pd.DataFrame(
+        {t: np.linspace(1.0, 1.05, 14) for t in FX_TICKERS},
+        index=idx
+    )
+    with patch("modules.market_pulse.indicators.fetch_prices", return_value=mock_df):
+        result = get_fx_pairs()
+    assert isinstance(result, pd.DataFrame)
+
+
+def test_get_fx_pairs_has_required_columns():
+    from modules.market_pulse.indicators import get_fx_pairs, FX_TICKERS
+    idx = pd.date_range("2025-01-01", periods=14, freq="B")
+    mock_df = pd.DataFrame(
+        {t: np.linspace(1.0, 1.05, 14) for t in FX_TICKERS},
+        index=idx
+    )
+    with patch("modules.market_pulse.indicators.fetch_prices", return_value=mock_df):
+        result = get_fx_pairs()
+    assert all(c in result.columns for c in ["ticker", "label", "current", "1d", "1w"])
+
+
+def test_get_copper_gold_ratio_returns_dict_keys():
+    from modules.market_pulse.indicators import get_copper_gold_ratio
+    idx = pd.date_range("2023-01-01", periods=500, freq="B")
+    mock_df = pd.DataFrame({
+        "HG=F": np.full(500, 4.0),
+        "GC=F": np.full(500, 2000.0),
+    }, index=idx)
+    with patch("modules.market_pulse.indicators.fetch_prices", return_value=mock_df):
+        result = get_copper_gold_ratio()
+    assert all(k in result for k in ["series", "current", "label", "unit", "invert"])
+
+
+def test_get_copper_gold_ratio_value_is_copper_over_gold():
+    from modules.market_pulse.indicators import get_copper_gold_ratio
+    idx = pd.date_range("2023-01-01", periods=100, freq="B")
+    mock_df = pd.DataFrame({
+        "HG=F": np.full(100, 4.0),
+        "GC=F": np.full(100, 2000.0),
+    }, index=idx)
+    with patch("modules.market_pulse.indicators.fetch_prices", return_value=mock_df):
+        result = get_copper_gold_ratio()
+    assert abs(result["current"] - (4.0 / 2000.0)) < 1e-6
