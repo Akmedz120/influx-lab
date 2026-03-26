@@ -100,3 +100,56 @@ def get_consumer_confidence() -> dict:
         "unit": "index",
         "invert": True,
     }
+
+
+def get_hy_credit_spread() -> dict:
+    """
+    Fetch US HY option-adjusted spread (FRED: BAMLH0A0HYM2).
+    High spread = risky borrowing is expensive = stressed.
+    Score with invert=False.
+    """
+    start, end = _start(), _today()
+    series = fetch_fred("BAMLH0A0HYM2", start, end).dropna()
+    return {
+        "series": series,
+        "current": float(series.iloc[-1]),
+        "label": "HY Credit Spread",
+        "unit": "%",
+        "invert": False,
+    }
+
+
+def get_gold_spy_ratio() -> dict:
+    """
+    Compute GLD / SPY price ratio (yfinance: GLD, SPY).
+    High ratio = flight to gold = risk-off = stressed.
+    Score with invert=False.
+    """
+    start, end = _start(), _today()
+    prices = fetch_prices(["GLD", "SPY"], start, end)
+    ratio = (prices["GLD"] / prices["SPY"]).dropna()
+    return {
+        "series": ratio,
+        "current": float(ratio.iloc[-1]),
+        "label": "Gold / SPY Ratio",
+        "unit": "ratio",
+        "invert": False,
+    }
+
+
+def get_dxy() -> dict:
+    """
+    Fetch Dollar Index (yfinance: DX-Y.NYB).
+    Strong dollar = global risk-off = stressed.
+    Score with invert=False.
+    """
+    start, end = _start(), _today()
+    prices = fetch_prices(["DX-Y.NYB"], start, end)
+    series = prices["DX-Y.NYB"].dropna()
+    return {
+        "series": series,
+        "current": float(series.iloc[-1]),
+        "label": "Dollar Index (DXY)",
+        "unit": "index",
+        "invert": False,
+    }

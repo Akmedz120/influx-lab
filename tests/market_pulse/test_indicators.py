@@ -110,3 +110,39 @@ def test_get_consumer_confidence_invert_is_true():
     with patch("modules.market_pulse.indicators.fetch_fred", return_value=s):
         result = get_consumer_confidence()
     assert result["invert"] is True
+
+
+# ─── Risk Appetite ────────────────────────────────────────────────────────────
+
+def test_get_hy_credit_spread_returns_dict_keys():
+    from modules.market_pulse.indicators import get_hy_credit_spread
+    with patch("modules.market_pulse.indicators.fetch_fred", return_value=make_series(500, value=4.0)):
+        result = get_hy_credit_spread()
+    assert all(k in result for k in ["series", "current", "label", "unit", "invert"])
+
+
+def test_get_gold_spy_ratio_returns_dict_keys():
+    from modules.market_pulse.indicators import get_gold_spy_ratio
+    idx = pd.date_range("2023-01-01", periods=500, freq="B")
+    mock_df = pd.DataFrame({"GLD": np.full(500, 180.0), "SPY": np.full(500, 450.0)}, index=idx)
+    with patch("modules.market_pulse.indicators.fetch_prices", return_value=mock_df):
+        result = get_gold_spy_ratio()
+    assert all(k in result for k in ["series", "current", "label", "unit", "invert"])
+
+
+def test_get_gold_spy_ratio_value_is_gld_over_spy():
+    from modules.market_pulse.indicators import get_gold_spy_ratio
+    idx = pd.date_range("2023-01-01", periods=100, freq="B")
+    mock_df = pd.DataFrame({"GLD": np.full(100, 180.0), "SPY": np.full(100, 450.0)}, index=idx)
+    with patch("modules.market_pulse.indicators.fetch_prices", return_value=mock_df):
+        result = get_gold_spy_ratio()
+    assert abs(result["current"] - (180.0 / 450.0)) < 0.001
+
+
+def test_get_dxy_returns_dict_keys():
+    from modules.market_pulse.indicators import get_dxy
+    idx = pd.date_range("2023-01-01", periods=500, freq="B")
+    mock_df = pd.DataFrame({"DX-Y.NYB": np.full(500, 104.0)}, index=idx)
+    with patch("modules.market_pulse.indicators.fetch_prices", return_value=mock_df):
+        result = get_dxy()
+    assert all(k in result for k in ["series", "current", "label", "unit", "invert"])
