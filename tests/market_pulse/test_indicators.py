@@ -178,3 +178,44 @@ def test_get_global_heatmap_1d_return_correct():
     spy_row = result[result["ticker"] == "SPY"].iloc[0]
     expected_1d = prices[-1] / prices[-2] - 1
     assert abs(spy_row["1d"] - expected_1d) < 1e-6
+
+
+# ─── VIX Term Structure ───────────────────────────────────────────────────────
+
+def test_get_vix_term_structure_returns_dict_keys():
+    from modules.market_pulse.indicators import get_vix_term_structure
+    idx = pd.date_range("2025-01-01", periods=10, freq="B")
+    mock_df = pd.DataFrame({
+        "^VIX9D": [14.0] * 10,
+        "^VIX":   [16.0] * 10,
+        "^VIX3M": [18.0] * 10,
+    }, index=idx)
+    with patch("modules.market_pulse.indicators.fetch_prices", return_value=mock_df):
+        result = get_vix_term_structure()
+    assert all(k in result for k in ["vix9d", "vix", "vix3m", "structure", "label"])
+
+
+def test_get_vix_term_structure_contango_when_vix9d_below_vix3m():
+    from modules.market_pulse.indicators import get_vix_term_structure
+    idx = pd.date_range("2025-01-01", periods=5, freq="B")
+    mock_df = pd.DataFrame({
+        "^VIX9D": [12.0] * 5,
+        "^VIX":   [15.0] * 5,
+        "^VIX3M": [18.0] * 5,
+    }, index=idx)
+    with patch("modules.market_pulse.indicators.fetch_prices", return_value=mock_df):
+        result = get_vix_term_structure()
+    assert "Contango" in result["structure"]
+
+
+def test_get_vix_term_structure_backwardation_when_vix9d_above_vix3m():
+    from modules.market_pulse.indicators import get_vix_term_structure
+    idx = pd.date_range("2025-01-01", periods=5, freq="B")
+    mock_df = pd.DataFrame({
+        "^VIX9D": [30.0] * 5,
+        "^VIX":   [25.0] * 5,
+        "^VIX3M": [20.0] * 5,
+    }, index=idx)
+    with patch("modules.market_pulse.indicators.fetch_prices", return_value=mock_df):
+        result = get_vix_term_structure()
+    assert "Backwardation" in result["structure"]

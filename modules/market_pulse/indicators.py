@@ -194,3 +194,40 @@ def get_global_heatmap() -> pd.DataFrame:
             "1m": r1m,
         })
     return pd.DataFrame(rows)
+
+
+def get_vix_term_structure() -> dict:
+    """
+    Fetch VIX9D (^VIX9D), VIX (^VIX), VIX3M (^VIX3M) from yfinance.
+
+    Contango:      VIX9D < VIX < VIX3M  — normal, market calm
+    Backwardation: VIX9D > VIX > VIX3M  — panic, near-term fear elevated
+
+    Returns current values for all three + structure label.
+    Note: VIX3M was formerly ^VXV; yfinance may serve either ticker.
+    """
+    start, end = _start(), _today()
+    prices = fetch_prices(["^VIX9D", "^VIX", "^VIX3M"], start, end)
+
+    def _last(col):
+        if col not in prices.columns:
+            return None
+        s = prices[col].dropna()
+        return float(s.iloc[-1]) if len(s) > 0 else None
+
+    vix9d = _last("^VIX9D")
+    vix   = _last("^VIX")
+    vix3m = _last("^VIX3M")
+
+    if vix9d is not None and vix3m is not None:
+        structure = "Backwardation (Panic)" if vix9d > vix3m else "Contango (Calm)"
+    else:
+        structure = "Unknown"
+
+    return {
+        "vix9d": vix9d,
+        "vix": vix,
+        "vix3m": vix3m,
+        "structure": structure,
+        "label": "VIX Term Structure",
+    }
