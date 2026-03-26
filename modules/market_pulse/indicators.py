@@ -231,3 +231,37 @@ def get_vix_term_structure() -> dict:
         "structure": structure,
         "label": "VIX Term Structure",
     }
+
+
+def get_m2() -> dict:
+    """
+    Fetch M2 money supply (FRED: M2SL). Monthly series, units in billions USD.
+    High/rising M2 = more liquidity = calm market conditions.
+    Score with invert=True.
+    """
+    start, end = _start(), _today()
+    series = fetch_fred("M2SL", start, end).dropna()
+    return {
+        "series": series,
+        "current": float(series.iloc[-1]),
+        "label": "M2 Money Supply",
+        "unit": "$B",
+        "invert": True,
+    }
+
+
+def get_fed_balance_sheet() -> dict:
+    """
+    Fetch Fed balance sheet total assets (FRED: WALCL). Weekly series, units in millions USD.
+    Shrinking balance sheet = tighter liquidity = stressed.
+    Score with invert=True (large balance sheet = more liquidity = calm).
+    """
+    start, end = _start(), _today()
+    series = fetch_fred("WALCL", start, end).dropna()
+    return {
+        "series": series,
+        "current": float(series.iloc[-1]),
+        "label": "Fed Balance Sheet",
+        "unit": "$M",
+        "invert": True,
+    }

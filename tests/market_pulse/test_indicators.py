@@ -219,3 +219,44 @@ def test_get_vix_term_structure_backwardation_when_vix9d_above_vix3m():
     with patch("modules.market_pulse.indicators.fetch_prices", return_value=mock_df):
         result = get_vix_term_structure()
     assert "Backwardation" in result["structure"]
+
+
+# ─── Liquidity ────────────────────────────────────────────────────────────────
+
+def test_get_m2_returns_dict_keys():
+    from modules.market_pulse.indicators import get_m2
+    monthly = pd.Series(
+        [20000.0 + i * 10 for i in range(36)],
+        index=pd.date_range("2023-01-01", periods=36, freq="ME")
+    )
+    with patch("modules.market_pulse.indicators.fetch_fred", return_value=monthly):
+        result = get_m2()
+    assert all(k in result for k in ["series", "current", "label", "unit", "invert"])
+
+
+def test_get_m2_invert_is_true():
+    from modules.market_pulse.indicators import get_m2
+    s = pd.Series([20000.0] * 36, index=pd.date_range("2023-01-01", periods=36, freq="ME"))
+    with patch("modules.market_pulse.indicators.fetch_fred", return_value=s):
+        result = get_m2()
+    assert result["invert"] is True
+
+
+def test_get_fed_balance_sheet_returns_dict_keys():
+    from modules.market_pulse.indicators import get_fed_balance_sheet
+    weekly = pd.Series(
+        [8_000_000.0 + i * 1000 for i in range(150)],
+        index=pd.date_range("2023-01-01", periods=150, freq="W")
+    )
+    with patch("modules.market_pulse.indicators.fetch_fred", return_value=weekly):
+        result = get_fed_balance_sheet()
+    assert all(k in result for k in ["series", "current", "label", "unit", "invert"])
+
+
+def test_get_fed_balance_sheet_current_is_last():
+    from modules.market_pulse.indicators import get_fed_balance_sheet
+    values = [8_000_000.0 + i * 1000 for i in range(50)]
+    s = pd.Series(values, index=pd.date_range("2023-01-01", periods=50, freq="W"))
+    with patch("modules.market_pulse.indicators.fetch_fred", return_value=s):
+        result = get_fed_balance_sheet()
+    assert abs(result["current"] - values[-1]) < 1.0
