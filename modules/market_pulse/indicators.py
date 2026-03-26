@@ -47,3 +47,56 @@ def get_fed_funds() -> dict:
         "unit": "%",
         "invert": False,
     }
+
+
+def get_vix() -> dict:
+    """
+    Fetch VIX equity fear index (yfinance: ^VIX).
+    High = stressed. Score with invert=False.
+    """
+    start, end = _start(), _today()
+    prices = fetch_prices(["^VIX"], start, end)
+    series = prices["^VIX"].dropna()
+    return {
+        "series": series,
+        "current": float(series.iloc[-1]),
+        "label": "VIX",
+        "unit": "pts",
+        "invert": False,
+    }
+
+
+def get_aaii_sentiment() -> dict:
+    """
+    Fetch AAII bull/bear survey (FRED: AAIIBULL, AAIIBEAR), return bull-bear spread.
+    Low spread = fearful retail = stressed. High spread = bullish = calm.
+    Score with invert=True. Note: weekly series.
+    """
+    start, end = _start(), _today()
+    bull = fetch_fred("AAIIBULL", start, end)
+    bear = fetch_fred("AAIIBEAR", start, end)
+    combined = pd.concat([bull.rename("bull"), bear.rename("bear")], axis=1).dropna()
+    spread = (combined["bull"] - combined["bear"]).rename("spread")
+    return {
+        "series": spread,
+        "current": float(spread.iloc[-1]),
+        "label": "AAII Bull–Bear Spread",
+        "unit": "%",
+        "invert": True,
+    }
+
+
+def get_consumer_confidence() -> dict:
+    """
+    Fetch U of Michigan Consumer Sentiment (FRED: UMCSENT).
+    High = confident = calm. Score with invert=True. Note: monthly series.
+    """
+    start, end = _start(), _today()
+    series = fetch_fred("UMCSENT", start, end).dropna()
+    return {
+        "series": series,
+        "current": float(series.iloc[-1]),
+        "label": "Consumer Confidence (UMich)",
+        "unit": "index",
+        "invert": True,
+    }
