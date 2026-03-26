@@ -83,8 +83,13 @@ Computes a rolling pairwise Pearson correlation matrix across all daily-frequenc
 ```python
 def get_correlation_matrix(assets: list[str], window: int, regime_dates: pd.DatetimeIndex | None = None) -> pd.DataFrame:
     # Returns square DataFrame of Pearson correlations.
-    # If regime_dates (DatetimeIndex) provided, filter price history to ONLY those dates before computing.
-    # NaN values (missing prices or filtered-out dates) are dropped before Pearson calculation.
+    #
+    # Two modes:
+    # - regime_dates=None: use the most recent `window` trading days of price history.
+    # - regime_dates provided (DatetimeIndex): filter ALL price history to those dates,
+    #   ignore window, compute a single static correlation matrix across matching dates.
+    #
+    # NaN values (missing prices) are dropped per pair before Pearson calculation.
 ```
 
 ### Testing focus
@@ -123,6 +128,10 @@ Uses the Fear & Greed composite score history to classify each trading day into 
 ```python
 def get_fear_greed_history() -> pd.Series:
     # Fetch the 6 composite indicator series (same as compute_fear_greed_index).
+    # Score each indicator using the FULL 3-year distribution as the reference window
+    # (not a rolling percentile — this is acceptable for visualization; it would
+    # introduce minor look-ahead bias in a backtesting context, but this is not a
+    # backtesting tool).
     # For each trading date in the common index, compute the equal-weighted average
     # percentile score across available indicators.
     # Returns pd.Series indexed by date, values 0–100.
@@ -187,11 +196,18 @@ def cross_correlate(series_a: pd.Series, series_b: pd.Series, max_lag: int = 60)
     # Series are aligned on common dates before computation.
     # Returns Series indexed by integer lag, values are Pearson correlation.
 
+def interpret_lag(indicator_name: str, target_name: str, peak_lag: int, peak_corr: float) -> str:
+    # Returns plain-language interpretation of a peak lag result.
+    # Examples:
+    #   peak_lag=45  → "Yield Curve leads VIX by ~45 days (corr: 0.71)"
+    #   peak_lag=-3  → "XLK lags SPY by ~3 days (corr: 0.88)"
+    #   peak_lag=0   → "XLK moves with SPY (no lead/lag, corr: 0.88)"
+
 def scan_all_vs_target(target: pd.Series, indicators: dict[str, pd.Series], max_lag: int = 60) -> pd.DataFrame:
     # For each indicator, calls cross_correlate(indicator, target, max_lag).
+    # Uses interpret_lag() to generate plain-language interpretation.
     # Returns DataFrame sorted by abs(peak_correlation) descending:
     # columns: indicator_name, peak_correlation, peak_lag, interpretation
-    # interpretation: e.g. "Yield Curve leads VIX by 45 days" or "XLK lags SPY by 3 days"
 ```
 
 ### Testing focus
